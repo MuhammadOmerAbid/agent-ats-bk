@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10.5pt;
+    color: #1a1a1a;
+    background: white;
+    padding: 1.8cm 2.2cm;
+    line-height: 1.5;
+  }
+
+  /* ── Header ── */
+  .name {
+    font-size: 20pt;
+    font-weight: 700;
+    color: #111;
+    letter-spacing: 0.4px;
+  }
+  .contact {
+    font-size: 9.5pt;
+    color: #444;
+    margin-top: 5px;
+  }
+  .contact span { margin-right: 14px; }
+  .header-rule {
+    border: none;
+    border-top: 1.5px solid #111;
+    margin-top: 8px;
+    margin-bottom: 4px;
+  }
+
+  /* ── Section ── */
+  .section { margin-top: 14px; page-break-inside: avoid; }
+  .section-title {
+    font-size: 10.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #111;
+    border-bottom: 1.5px solid #111;
+    padding-bottom: 3px;
+    margin-bottom: 8px;
+  }
+
+  /* ── Summary ── */
+  .summary p { font-size: 10pt; color: #333; line-height: 1.6; }
+
+  /* ── Experience ── */
+  .job { margin-bottom: 11px; page-break-inside: avoid; }
+  .job-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .job-title { font-weight: 700; font-size: 10.5pt; }
+  .job-company { font-size: 10pt; color: #333; }
+  .job-meta { font-size: 9.5pt; color: #555; white-space: nowrap; }
+  .job ul { margin-top: 5px; padding-left: 18px; }
+  .job ul li { font-size: 10pt; margin-bottom: 3px; color: #222; }
+
+  /* ── Projects ── */
+  .project { margin-bottom: 10px; page-break-inside: avoid; }
+  .project-header { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .project-name { font-weight: 700; font-size: 10.5pt; }
+  .project-tech { font-size: 9.5pt; color: #555; font-style: italic; }
+  .project p { font-size: 10pt; color: #333; margin-top: 3px; }
+  .project ul { margin-top: 4px; padding-left: 18px; }
+  .project ul li { font-size: 10pt; margin-bottom: 3px; color: #222; }
+
+  /* ── Skills ── */
+  .skills-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .skill-tag {
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 2px 9px;
+    font-size: 9.5pt;
+    color: #222;
+  }
+
+  /* ── Education ── */
+  .edu-item {
+    margin-bottom: 7px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .edu-main { font-size: 10pt; }
+  .edu-degree { font-weight: 600; }
+  .edu-school { color: #444; }
+  .edu-year { font-size: 9.5pt; color: #666; white-space: nowrap; }
+
+  /* ── Certifications ── */
+  .cert-item { margin-bottom: 5px; font-size: 10pt; }
+  .cert-name { font-weight: 600; }
+  .cert-meta { color: #555; }
+</style>
+</head>
+<body>
+
+<div class="name">{{ name }}</div>
+<div class="contact">
+  {% if email %}<span>{{ email }}</span>{% endif %}
+  {% if phone %}<span>{{ phone }}</span>{% endif %}
+  {% if location %}<span>{{ location }}</span>{% endif %}
+  {% if linkedin %}<span>{{ linkedin }}</span>{% endif %}
+  {% if github %}<span>{{ github }}</span>{% endif %}
+</div>
+<hr class="header-rule">
+
+{% if summary %}
+<div class="section summary">
+  <div class="section-title">Professional Summary</div>
+  <p>{{ summary }}</p>
+</div>
+{% endif %}
+
+{% if experience %}
+<div class="section">
+  <div class="section-title">Experience</div>
+  {% for job in experience %}
+  <div class="job">
+    <div class="job-header">
+      <div>
+        <span class="job-title">{{ job.title }}</span>
+        {% if job.company %}<span class="job-company"> &mdash; {{ job.company }}</span>{% endif %}
+        {% if job.location %}<span class="job-meta">&nbsp;&nbsp;{{ job.location }}</span>{% endif %}
+      </div>
+      {% if job.date %}<span class="job-meta">{{ job.date }}</span>{% endif %}
+    </div>
+    {% if job.bullets %}
+    <ul>
+      {% for bullet in job.bullets %}<li>{{ bullet }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if projects %}
+<div class="section">
+  <div class="section-title">Projects</div>
+  {% for project in projects %}
+  <div class="project">
+    <div class="project-header">
+      <span class="project-name">{{ project.name }}</span>
+      {% if project.technologies %}<span class="project-tech">{{ project.technologies | join(", ") }}</span>{% endif %}
+    </div>
+    {% if project.description %}<p>{{ project.description }}</p>{% endif %}
+    {% if project.bullets %}
+    <ul>
+      {% for bullet in project.bullets %}<li>{{ bullet }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if skills %}
+<div class="section">
+  <div class="section-title">Skills</div>
+  <div class="skills-list">
+    {% for skill in skills %}<span class="skill-tag">{{ skill }}</span>{% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if education %}
+<div class="section">
+  <div class="section-title">Education</div>
+  {% for edu in education %}
+  <div class="edu-item">
+    <div class="edu-main">
+      <span class="edu-degree">{{ edu.degree }}</span>
+      {% if edu.institution %}<span class="edu-school"> &mdash; {{ edu.institution }}</span>{% endif %}
+      {% if edu.location %}<span class="edu-school">, {{ edu.location }}</span>{% endif %}
+    </div>
+    {% if edu.year %}<span class="edu-year">{{ edu.year }}</span>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if certifications %}
+<div class="section">
+  <div class="section-title">Certifications</div>
+  {% for cert in certifications %}
+  <div class="cert-item">
+    <span class="cert-name">{{ cert.name }}</span>
+    {% if cert.issuer or cert.year %}
+    <span class="cert-meta"> &mdash; {{ cert.issuer }}{% if cert.issuer and cert.year %}, {% endif %}{{ cert.year }}</span>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+</body>
+</html>

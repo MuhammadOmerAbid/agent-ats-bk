@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10pt;
+    color: #1a1a1a;
+    background: white;
+  }
+
+  /* ── Blue header stripe ── */
+  .euro-header {
+    background: #003399;
+    color: white;
+    padding: 22px 28px 18px;
+  }
+  .euro-name {
+    font-size: 20pt;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+  }
+  .euro-contact {
+    font-size: 9.5pt;
+    color: #aabfff;
+    margin-top: 7px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+  }
+  .euro-contact span { margin-right: 20px; margin-top: 2px; }
+
+  /* ── Body ── */
+  .body { padding: 0 28px 24px; }
+
+  /* ── Section row ── */
+  .section { margin-top: 0; page-break-inside: avoid; }
+  .section-row {
+    display: flex;
+    gap: 0;
+    border-top: 1px solid #ccd3f0;
+    padding: 12px 0 4px;
+  }
+  .section-label {
+    width: 155px;
+    min-width: 155px;
+    font-size: 8.5pt;
+    font-weight: 700;
+    color: #003399;
+    text-transform: uppercase;
+    letter-spacing: 0.9px;
+    padding-right: 16px;
+    padding-top: 2px;
+    line-height: 1.4;
+  }
+  .section-content { flex: 1; }
+
+  /* ── Summary ── */
+  .summary-text { font-size: 10pt; line-height: 1.6; color: #333; }
+
+  /* ── Experience ── */
+  .job { margin-bottom: 12px; page-break-inside: avoid; }
+  .job-title { font-weight: 700; font-size: 10.5pt; color: #111; }
+  .job-meta { font-size: 9.5pt; color: #555; margin-top: 1px; margin-bottom: 4px; }
+  .job ul { padding-left: 16px; }
+  .job ul li { font-size: 9.5pt; margin-bottom: 3px; color: #333; }
+
+  /* ── Projects ── */
+  .project { margin-bottom: 11px; page-break-inside: avoid; }
+  .project-name { font-weight: 700; font-size: 10pt; color: #111; }
+  .project-tech { font-size: 9pt; color: #003399; font-style: italic; margin-top: 1px; }
+  .project p { font-size: 9.5pt; color: #444; margin-top: 3px; line-height: 1.5; }
+  .project ul { padding-left: 16px; margin-top: 4px; }
+  .project ul li { font-size: 9.5pt; margin-bottom: 3px; color: #333; }
+
+  /* ── Skills ── */
+  .skills-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .skill-pill {
+    border: 1px solid #003399;
+    color: #003399;
+    border-radius: 12px;
+    padding: 2px 11px;
+    font-size: 9pt;
+  }
+
+  /* ── Education ── */
+  .edu-item { margin-bottom: 8px; }
+  .edu-degree { font-weight: 600; font-size: 10pt; }
+  .edu-school { color: #555; }
+  .edu-meta { font-size: 9pt; color: #777; margin-top: 1px; }
+
+  /* ── Certifications ── */
+  .cert-item { margin-bottom: 6px; font-size: 10pt; }
+  .cert-name { font-weight: 600; }
+  .cert-meta { color: #555; }
+</style>
+</head>
+<body>
+
+<div class="euro-header">
+  <div class="euro-name">{{ name }}</div>
+  <div class="euro-contact">
+    {% if email %}<span>{{ email }}</span>{% endif %}
+    {% if phone %}<span>{{ phone }}</span>{% endif %}
+    {% if location %}<span>{{ location }}</span>{% endif %}
+    {% if linkedin %}<span>{{ linkedin }}</span>{% endif %}
+    {% if github %}<span>{{ github }}</span>{% endif %}
+  </div>
+</div>
+
+<div class="body">
+
+{% if summary %}
+<div class="section">
+  <div class="section-row">
+    <div class="section-label">Personal Statement</div>
+    <div class="section-content">
+      <p class="summary-text">{{ summary }}</p>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if experience %}
+<div class="section">
+  <div class="section-row">
+    <div class="section-label">Work Experience</div>
+    <div class="section-content">
+      {% for job in experience %}
+      <div class="job">
+        <div class="job-title">{{ job.title }}</div>
+        <div class="job-meta">
+          {% if job.company %}{{ job.company }}{% endif %}
+          {% if job.location %} &middot; {{ job.location }}{% endif %}
+          {% if job.date %} &middot; {{ job.date }}{% endif %}
+        </div>
+        {% if job.bullets %}
+        <ul>
+          {% for bullet in job.bullets %}<li>{{ bullet }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if projects %}
+<div class="section">
+  <div class="section-row">
+    <div class="section-label">Projects</div>
+    <div class="section-content">
+      {% for project in projects %}
+      <div class="project">
+        <div class="project-name">{{ project.name }}</div>
+        {% if project.technologies %}<div class="project-tech">{{ project.technologies | join(" · ") }}</div>{% endif %}
+        {% if project.description %}<p>{{ project.description }}</p>{% endif %}
+        {% if project.bullets %}
+        <ul>
+          {% for bullet in project.bullets %}<li>{{ bullet }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if skills %}
+<div class="section">
+  <div class="section-row">
+    <div class="section-label">Skills &amp; Competences</div>
+    <div class="section-content">
+      <div class="skills-grid">
+        {% for skill in skills %}<span class="skill-pill">{{ skill }}</span>{% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if education %}
+<div class="section">
+  <div class="section-row">
+    <div class="section-label">Education</div>
+    <div class="section-content">
+      {% for edu in education %}
+      <div class="edu-item">
+        <span class="edu-degree">{{ edu.degree }}</span>
+        {% if edu.institution %}<span class="edu-school"> &mdash; {{ edu.institution }}</span>{% endif %}
+        <div class="edu-meta">
+          {% if edu.location %}{{ edu.location }}{% endif %}
+          {% if edu.location and edu.year %} &middot; {% endif %}
+          {% if edu.year %}{{ edu.year }}{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if certifications %}
+<div class="section">
+  <div class="section-row">
+    <div class="section-label">Certifications</div>
+    <div class="section-content">
+      {% for cert in certifications %}
+      <div class="cert-item">
+        <span class="cert-name">{{ cert.name }}</span>
+        {% if cert.issuer or cert.year %}
+        <span class="cert-meta"> &mdash; {{ cert.issuer }}{% if cert.issuer and cert.year %}, {% endif %}{{ cert.year }}</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+</div>
+</body>
+</html>
