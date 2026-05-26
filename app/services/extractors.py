@@ -155,10 +155,10 @@ def extract_bullets(text: str) -> list[str]:
             bullets.append(match.group("text").strip())
 
     if bullets:
-        return bullets[:8]
+        return bullets[:24]
 
     sentences = re.split(r"(?<=[.!?])\s+", normalize_text(text))
-    return [sentence.strip() for sentence in sentences if len(sentence.split()) >= 6][:8]
+    return [sentence.strip() for sentence in sentences if len(sentence.split()) >= 6][:24]
 
 
 def has_metrics(text: str) -> bool:
@@ -169,16 +169,62 @@ async def extract_text_from_upload(filename: str, content: bytes) -> str:
     suffix = Path(filename).suffix.lower()
     if suffix == ".pdf":
         reader = PdfReader(BytesIO(content))
-        return "\n".join(page.extract_text() or "" for page in reader.pages)
+        pages = []
+        for index, page in enumerate(reader.pages, start=1):
+            page_text = _clean_extracted_text(page.extract_text() or "")
+            if page_text:
+                pages.append(f"[Page {index}]\n{page_text}")
+        return "\n\n".join(pages)
 
     if suffix in {".docx", ".doc"}:
         document = Document(BytesIO(content))
-        return "\n".join(paragraph.text for paragraph in document.paragraphs)
+        return _extract_docx_text(document)
 
     if suffix in IMAGE_SUFFIXES:
         return extract_text_from_image(content, _mime_type_for_image(suffix))
 
     return content.decode("utf-8", errors="ignore")
+
+
+def _extract_docx_text(document: Document) -> str:
+    parts: list[str] = []
+
+    for section in document.sections:
+        _append_paragraphs(parts, section.header.paragraphs)
+        _append_tables(parts, section.header.tables)
+
+    _append_paragraphs(parts, document.paragraphs)
+    _append_tables(parts, document.tables)
+
+    for section in document.sections:
+        _append_paragraphs(parts, section.footer.paragraphs)
+        _append_tables(parts, section.footer.tables)
+
+    return _clean_extracted_text("\n".join(parts))
+
+
+def _append_paragraphs(parts: list[str], paragraphs: object) -> None:
+    for paragraph in paragraphs:
+        text = _clean_extracted_text(getattr(paragraph, "text", ""))
+        if text:
+            parts.append(text)
+
+
+def _append_tables(parts: list[str], tables: object) -> None:
+    for table in tables:
+        for row in table.rows:
+            cells = [_clean_extracted_text(cell.text) for cell in row.cells]
+            row_text = " | ".join(cell for cell in cells if cell)
+            if row_text:
+                parts.append(row_text)
+            for cell in row.cells:
+                _append_tables(parts, cell.tables)
+
+
+def _clean_extracted_text(text: str) -> str:
+    text = text.replace("\x00", " ").replace("\r\n", "\n").replace("\r", "\n")
+    lines = [re.sub(r"[ \t]+", " ", line).strip() for line in text.splitlines()]
+    return "\n".join(line for line in lines if line)
 
 
 def _mime_type_for_image(suffix: str) -> str:
