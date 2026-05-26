@@ -1,8 +1,11 @@
+import asyncio
+import io
 import os
 from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
 from playwright.async_api import async_playwright
+from playwright.sync_api import sync_playwright
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
@@ -11,10 +14,10 @@ from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 from app.resume_schema import ApprovedResume
-import io
 
 _TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 _env = Environment(loader=FileSystemLoader(_TEMPLATES_DIR), autoescape=True)
+_PLAYWRIGHT_TIMEOUT_SECONDS = 45
 
 
 async def generate_ats_pdf(approved: dict[str, Any]) -> bytes:
@@ -31,25 +34,49 @@ async def generate_europass_pdf(approved: dict[str, Any]) -> bytes:
 
 async def _render(template_name: str, approved: dict[str, Any], style_name: str) -> bytes:
     data = _normalize(approved)
-    if os.name == "nt":
-        return _render_reportlab(data, style_name)
-
     html_str = _env.get_template(template_name).render(**data)
     try:
-        async with async_playwright() as pw:
-            browser = await pw.chromium.launch()
-            page = await browser.new_page()
-            await page.set_content(html_str, wait_until="networkidle")
-            pdf_bytes = await page.pdf(
-                format="A4",
-                print_background=True,
-                margin={"top": "0mm", "right": "0mm", "bottom": "0mm", "left": "0mm"},
+        if os.name == "nt":
+            return await asyncio.wait_for(
+                asyncio.to_thread(_render_playwright_sync, html_str),
+                timeout=_PLAYWRIGHT_TIMEOUT_SECONDS,
             )
-            await browser.close()
-        return pdf_bytes
+        return await asyncio.wait_for(
+            _render_playwright_async(html_str),
+            timeout=_PLAYWRIGHT_TIMEOUT_SECONDS,
+        )
     except Exception as error:
         print(f"[PDF] Playwright render failed, using ReportLab fallback: {error}")
         return _render_reportlab(data, style_name)
+
+
+async def _render_playwright_async(html_str: str) -> bytes:
+    browser = None
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch()
+        page = await browser.new_page()
+        await page.set_content(html_str, wait_until="networkidle")
+        pdf_bytes = await page.pdf(
+            format="A4",
+            print_background=True,
+            margin={"top": "0mm", "right": "0mm", "bottom": "0mm", "left": "0mm"},
+        )
+        await browser.close()
+    return pdf_bytes
+
+
+def _render_playwright_sync(html_str: str) -> bytes:
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        page = browser.new_page()
+        page.set_content(html_str, wait_until="networkidle")
+        pdf_bytes = page.pdf(
+            format="A4",
+            print_background=True,
+            margin={"top": "0mm", "right": "0mm", "bottom": "0mm", "left": "0mm"},
+        )
+        browser.close()
+    return pdf_bytes
 
 
 def _render_reportlab(data: dict[str, Any], style_name: str) -> bytes:

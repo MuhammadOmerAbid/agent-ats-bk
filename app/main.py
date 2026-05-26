@@ -21,6 +21,7 @@ class ChatRequest(BaseModel):
     messages: list[Message]
     resume_text: str = ""
     jd_text: str = ""
+    match_result: Optional[dict] = None
 
 
 class InterviewRequest(BaseModel):
@@ -71,7 +72,7 @@ async def health() -> dict[str, str]:
 @app.post("/api/chat")
 async def chat(req: ChatRequest) -> dict[str, str]:
     messages = [{"role": message.role, "content": message.content} for message in req.messages]
-    reply = chat_with_agent(messages=messages, resume_text=req.resume_text, jd_text=req.jd_text)
+    reply = chat_with_agent(messages=messages, resume_text=req.resume_text, jd_text=req.jd_text, match_result=req.match_result)
     return {"reply": reply}
 
 

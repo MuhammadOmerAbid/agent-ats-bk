@@ -7,6 +7,8 @@ from app.llm_extractor import extract_user_info
 from app.resume_schema import ResumeDraft
 from app.services.extractors import extract_bullets, extract_skills, has_metrics
 
+_MAX_RESUME_CHARS_FOR_LLM = 20000
+
 
 def generate_resume_draft(
     original_resume: str,
@@ -38,7 +40,7 @@ SKILLS THE CANDIDATE IS MISSING (do NOT add these unless already in resume): {mi
 JD SKILLS FOR ATS KEYWORDS: {jd_skills}
 
 ORIGINAL RESUME (extract every section — do not skip any experience, project, or education):
-{source_resume[:8000]}
+{_truncate_resume_for_llm(source_resume)}
 
 Return ONLY valid JSON with this exact shape:
 {{
@@ -104,7 +106,7 @@ Return ONLY valid JSON with this exact shape:
 """
 
     try:
-        draft = _parse_json(call_llm(prompt, prefer_fast=False, max_tokens=4000))
+        draft = _parse_json(call_llm(prompt, prefer_fast=False, max_tokens=6000))
     except Exception as error:
         print(f"[Draft] LLM structured draft failed, using deterministic fallback: {error}")
         draft = _fallback_draft(source_resume, matched, jd_skills)
@@ -180,7 +182,7 @@ def _fallback_draft(original_resume: str, matched: list[str], jd_skills: dict[st
                         "suggested": _improve_bullet(bullet),
                         "change_reason": "Improved for action, clarity, and ATS readability without adding unsupported claims.",
                     }
-                    for bullet in bullets[:6]
+                    for bullet in bullets[:16]
                 ],
             }
         ]
@@ -351,6 +353,20 @@ def _resume_from_match_result(gap_analysis: dict[str, Any]) -> str:
             ", ".join(str(skill) for skill in optimized.get("skills", [])),
         ]
         if part.strip()
+    )
+
+
+def _truncate_resume_for_llm(text: str) -> str:
+    if len(text) <= _MAX_RESUME_CHARS_FOR_LLM:
+        return text
+
+    head = text[: int(_MAX_RESUME_CHARS_FOR_LLM * 0.7)]
+    tail = text[-int(_MAX_RESUME_CHARS_FOR_LLM * 0.3) :]
+    return (
+        f"{head}\n\n"
+        "[Middle of resume omitted because it exceeded the LLM context budget. "
+        "The ending is included below to preserve education, certifications, and projects.]\n\n"
+        f"{tail}"
     )
 
 

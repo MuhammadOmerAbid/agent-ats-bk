@@ -26,13 +26,19 @@ Current conversation state is passed to you each time.
 Always be specific. Never give generic advice.
 When you find a problem, show the exact line that has the problem.
 When you suggest improvement, show before AND after.
-If ATS score context is available, cite it in plain language before giving advice.
+If an AUTHORITATIVE ATS MATCH RESULT is available, use only that score. Never recalculate or invent a different ATS score.
+Format responses in clear Markdown with short ATX headings like ## ATS Score, bullets, and bold labels where useful.
 """
 
 
-def chat_with_agent(messages: list[dict[str, str]], resume_text: str = "", jd_text: str = "") -> str:
+def chat_with_agent(
+    messages: list[dict[str, str]],
+    resume_text: str = "",
+    jd_text: str = "",
+    match_result: dict | None = None,
+) -> str:
     safe_messages = _sanitize_messages(messages)
-    context = _build_context(resume_text, jd_text, safe_messages)
+    context = _build_context(resume_text, jd_text, safe_messages, match_result)
 
     full_messages: list[dict[str, str]] = [
         {"role": "user", "content": SYSTEM_PROMPT + context + "\n\nConversation starts now."},
@@ -62,7 +68,12 @@ def call_llm_chat(messages: list[dict[str, str]], max_tokens: int = 2000) -> str
     return call_llm(prompt, prefer_fast=False, max_tokens=max_tokens)
 
 
-def _build_context(resume_text: str, jd_text: str, messages: list[dict[str, str]]) -> str:
+def _build_context(
+    resume_text: str,
+    jd_text: str,
+    messages: list[dict[str, str]],
+    match_result: dict | None = None,
+) -> str:
     parts: list[str] = []
     if resume_text:
         parts.append(f"CANDIDATE RESUME:\n{resume_text[:4500]}")
@@ -75,7 +86,9 @@ def _build_context(resume_text: str, jd_text: str, messages: list[dict[str, str]
             latest_user_message = message["content"]
             break
 
-    score_snapshot = _maybe_build_score_snapshot(latest_user_message, resume_text, jd_text)
+    score_snapshot = _build_authoritative_score_snapshot(match_result)
+    if not score_snapshot:
+        score_snapshot = _maybe_build_score_snapshot(latest_user_message, resume_text, jd_text)
     if score_snapshot:
         parts.append("ATS SNAPSHOT:\n" + score_snapshot)
 
@@ -86,6 +99,28 @@ def _build_context(resume_text: str, jd_text: str, messages: list[dict[str, str]
     if not parts:
         return ""
     return "\n\n" + "\n\n".join(parts)
+
+
+def _build_authoritative_score_snapshot(match_result: dict | None) -> str:
+    if not isinstance(match_result, dict):
+        return ""
+
+    before_score = match_result.get("beforeScore", match_result.get("before_score"))
+    after_score = match_result.get("afterScoreEstimate", match_result.get("after_score_estimate"))
+    if before_score is None:
+        return ""
+
+    return (
+        "AUTHORITATIVE ATS MATCH RESULT - use these exact scores in chat.\n"
+        f"before_score={before_score}\n"
+        f"after_score_estimate={after_score if after_score is not None else 'unknown'}\n"
+        f"risk_level={match_result.get('riskLevel', match_result.get('risk_level', 'unknown'))}\n"
+        f"matched_required={', '.join(_string_list(match_result.get('matchedRequired', match_result.get('matched_required')))[:8]) or 'None'}\n"
+        f"missing_required={', '.join(_string_list(match_result.get('missingRequired', match_result.get('missing_required')))[:8]) or 'None'}\n"
+        f"matched_preferred={', '.join(_string_list(match_result.get('matchedPreferred', match_result.get('matched_preferred')))[:8]) or 'None'}\n"
+        f"missing_preferred={', '.join(_string_list(match_result.get('missingPreferred', match_result.get('missing_preferred')))[:8]) or 'None'}\n"
+        f"recommendations={'; '.join(_string_list(match_result.get('recommendations'))[:4]) or 'None'}"
+    )
 
 
 def _maybe_build_score_snapshot(last_user_message: str, resume_text: str, jd_text: str) -> str:
@@ -122,6 +157,12 @@ def _looks_like_score_request(text: str) -> bool:
         "resume score",
     ]
     return any(trigger in lowered for trigger in triggers)
+
+
+def _string_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if str(item).strip()]
 
 
 def _maybe_build_optimizer_snapshot(last_user_message: str, resume_text: str, jd_text: str) -> str:
