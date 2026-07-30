@@ -1,6 +1,7 @@
 import asyncio
 import io
 import os
+import re
 from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
@@ -18,6 +19,88 @@ from app.resume_schema import ApprovedResume
 _TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 _env = Environment(loader=FileSystemLoader(_TEMPLATES_DIR), autoescape=True)
 _PLAYWRIGHT_TIMEOUT_SECONDS = 45
+
+# Ordered category buckets for the "ats" template's Technical Skills section.
+# Skills are matched against these keyword lists (best-effort); anything
+# unmatched falls into "Additional Skills" at the end.
+_SKILL_CATEGORIES: list[tuple[str, list[str]]] = [
+    ("Languages", [
+        "python", "javascript", "typescript", "java", "c++", "c#", "c", "sql",
+        "go", "golang", "rust", "php", "ruby", "swift", "kotlin", "scala", "r",
+        "bash", "perl", "dart",
+    ]),
+    ("Frontend", [
+        "react", "next.js", "nextjs", "vue", "angular", "svelte", "tailwind",
+        "html", "html5", "css", "css3", "bootstrap", "sass", "scss", "redux",
+        "zustand", "framer motion", "jquery", "webpack", "vite",
+    ]),
+    ("Backend", [
+        "node.js", "nodejs", "node", "express", "django", "flask", "fastapi",
+        "spring", ".net", "laravel", "rails", "nestjs", "jwt", "oauth",
+        "microservices", "rest api", "rest apis", "restful", "graphql", "drf",
+    ]),
+    ("Databases", [
+        "mongodb", "postgresql", "postgres", "mysql", "sqlite", "redis",
+        "dynamodb", "cassandra", "oracle", "mariadb", "firebase",
+        "elasticsearch", "vector database", "pinecone", "chroma", "faiss", "weaviate",
+    ]),
+    ("AI / LLM", [
+        "langchain", "langgraph", "llm", "openai", "gemini", "anthropic",
+        "claude", "gpt", "hugging face", "huggingface", "prompt engineering",
+        "ai agents", "rag", "function calling", "llama",
+    ]),
+    ("Data Science / ML", [
+        "pandas", "numpy", "scikit-learn", "sklearn", "tensorflow", "pytorch",
+        "keras", "k-means", "tf-idf", "nltk", "textblob", "machine learning",
+        "matplotlib", "seaborn",
+    ]),
+    ("Testing & Tools", [
+        "cypress", "playwright", "jmeter", "postman", "git", "github",
+        "docker", "kubernetes", "ci/cd", "github actions", "vercel",
+        "jenkins", "jira", "aws", "azure", "gcp", "linux",
+    ]),
+    ("Foundations", [
+        "data structures", "algorithms", "oop", "system design", "api design",
+        "database design",
+    ]),
+]
+
+
+def _keyword_in_skill(skill_lower: str, keyword: str) -> bool:
+    """Match keyword as a standalone token, not a loose substring.
+
+    Prevents false positives like "go" matching inside "django"/"mongodb",
+    or "sql" matching inside "postgresql".
+    """
+    pattern = rf"(?<![a-z0-9]){re.escape(keyword)}s?(?![a-z0-9])"
+    return re.search(pattern, skill_lower) is not None
+
+
+def _categorize_skills(skills: list[str]) -> list[dict[str, Any]]:
+    """Group a flat skills list into labeled categories for the ATS template."""
+    buckets: dict[str, list[str]] = {label: [] for label, _ in _SKILL_CATEGORIES}
+    leftover: list[str] = []
+
+    for skill in skills:
+        skill_lower = skill.lower()
+        matched_label = None
+        for label, keywords in _SKILL_CATEGORIES:
+            if any(_keyword_in_skill(skill_lower, keyword) for keyword in keywords):
+                matched_label = label
+                break
+        if matched_label:
+            buckets[matched_label].append(skill)
+        else:
+            leftover.append(skill)
+
+    categories = [
+        {"label": label, "items": buckets[label]}
+        for label, _ in _SKILL_CATEGORIES
+        if buckets[label]
+    ]
+    if leftover:
+        categories.append({"label": "Additional Skills", "items": leftover})
+    return categories
 
 
 async def generate_ats_pdf(approved: dict[str, Any]) -> bytes:
@@ -316,6 +399,7 @@ def _normalize(raw: dict[str, Any]) -> dict[str, Any]:
         "experience": experience,
         "projects": projects,
         "skills": skills,
+        "skill_categories": _categorize_skills(skills),
         "education": education,
         "certifications": certifications,
     }
