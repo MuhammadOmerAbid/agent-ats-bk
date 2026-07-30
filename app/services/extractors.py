@@ -157,8 +157,19 @@ def extract_bullets(text: str) -> list[str]:
     if bullets:
         return bullets[:24]
 
-    sentences = re.split(r"(?<=[.!?])\s+", normalize_text(text))
-    return [sentence.strip() for sentence in sentences if len(sentence.split()) >= 6][:24]
+    # No literal bullet markers found. Split each physical line into sentences
+    # independently (never across lines) so section headers and unrelated
+    # entries that lack terminal punctuation can't get fused into one bullet.
+    for line in text.splitlines():
+        cleaned_line = normalize_text(line)
+        if not cleaned_line:
+            continue
+        for sentence in re.split(r"(?<=[.!?])\s+", cleaned_line):
+            sentence = sentence.strip()
+            if len(sentence.split()) >= 6:
+                bullets.append(sentence)
+
+    return bullets[:24]
 
 
 def has_metrics(text: str) -> bool:

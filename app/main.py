@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 
+from app.api.jobs import router as jobs_router
 from app.api.match import router as match_router
 from app.api.resume import router as resume_router
 from app.agent import chat_with_agent
@@ -62,6 +63,7 @@ app.add_middleware(
 
 app.include_router(match_router)
 app.include_router(resume_router)
+app.include_router(jobs_router)
 
 
 @app.get("/health")
